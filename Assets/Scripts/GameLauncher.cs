@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UIFramework;
 using UnityEngine;
@@ -7,13 +8,13 @@ public class GameLauncher : MonoBehaviour
 {
     void Start()
     {
-        UIManager.Instance.Open<StartUI>(); 
+        UIManager.Instance.Open<StartUI>();
     }
 
     void Update()
     {
-        if(Input.GetKeyDown(KeyCode.Space))
-            {
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
             UIManager.Instance.Close<StartUI>();
         }
     }

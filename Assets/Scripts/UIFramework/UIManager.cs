@@ -2,8 +2,12 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+
 namespace UIFramework
 {
+    // 关闭就是清除数据， 隐藏不清除数据
+    // 层级设置
     class UIManager
     {
         static UIManager _Instance;
@@ -48,10 +52,42 @@ namespace UIFramework
             }
         }
 
+        static Transform _UIParent;
+        static Dictionary<EUILayer, Transform> _UILayers = new Dictionary<EUILayer, Transform>();
+
         // 几种特殊情况
         // 连续几个弹窗依次出现
         // 同时出现两个弹窗
         // 
+
+        public UIManager()
+        {
+            InitUIParent();
+        }
+
+        void InitUIParent()
+        {
+            _UIParent = new GameObject("UIParent").transform;
+            UnityEngine.Object.DontDestroyOnLoad(_UIParent);
+            var eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<StandaloneInputModule>();
+            eventSystem.transform.SetParent(_UIParent);
+
+            var ns = Enum.GetNames(typeof(EUILayer));
+            for (int i = 0, length = ns.Length; i < length; i++)
+            {
+                var n = ns[i];
+                EUILayer l = (EUILayer)Enum.Parse(typeof(EUILayer), n);
+                if (!_UILayers.ContainsKey(l))
+                {
+                    var tf = new GameObject(n).transform;
+                    tf.SetParent(_UIParent);
+                    _UILayers.Add(l, tf);
+                }
+            }
+        }
+
 
         public T Get<T>()
             where T : BaseUI
@@ -96,48 +132,243 @@ namespace UIFramework
                 Debug.LogError("get ui failed! t=" + typeof(T));
                 return null;
             }
+            ui.transform.SetParent(_UILayers[ui._NaviData._Layer]);
+            ui.CanvasComp.sortingOrder = (int)ui._NaviData._Layer;
             ui.Open(data);
-            if (ui.NaviData._Type == EUIType.FullScreen)
+            if (ui._NaviData._Type == EUIType.FullScreen)
             {
-                _OpenedFullScreenUI.Add(ui);
+                HideFullScreenUI(CurFullScreenUI);
             }
-            else if (ui.NaviData._Type == EUIType.Coexisting)
-            {
-                if (_CoexistingUI.ContainsKey(CurFullScreenUI))
-                {
+            AddTargetUI(ui);
 
-                }
-                else
-                {
-                    _CoexistingUI[CurFullScreenUI] = new List<BaseUI>();
-                }
-                _CoexistingUI[CurFullScreenUI].Add(ui);
-            }
             return ui;
         }
 
         public void Close<T>(T ui)
             where T : BaseUI
         {
-            Debug.Log("Close t=" + ui.GetType());
-            ui.CloseInternal();
-            Push(ui);
+            CloseInternal(ui);
         }
 
         // 关闭最后一个该类型的UI
         public void Close<T>()
-            where T : BaseUI
+            where T : BaseUI, new()
         {
             var t = typeof(T);
-            var ui = _OpenedFullScreenUI.FindLast((BaseUI tempUI) => tempUI.GetType() == t);
+            T temp = new T();
+            BaseUI ui = FindLastUI<T>(temp._NaviData._Type);
             if (ui == null)
             {
                 Debug.LogErrorFormat("do not contains ui with type of {0}", t);
                 return;
             }
+            CloseInternal(ui as T);
+        }
+
+        void CloseInternal<T>(T ui)
+            where T : BaseUI
+        {
+            if (ui == null)
+            {
+                Debug.LogError("argument is invalid! ui is empty! ");
+                return;
+            }
+
             Debug.Log("Close t=" + ui.GetType());
-            ui.CloseInternal();
-            Push(ui as T);
+
+            // 移除栈中各UI
+            RemoveTargetUI(ui);
+
+            // 目前只有FullScreen类型的支持导航
+            // 处理全屏界面的共存UI
+            // 显示新的UI
+            if (ui._NaviData._Type == EUIType.FullScreen)
+            {
+                ShowFullScreenUI(CurFullScreenUI);
+            }
+
+            // 推入对象池
+            // 这里看看有什么优化方案，目前是Push和ui.CloseInternal分别判断了一次_CloseByDestroy
+            if (!ui._NaviData._CloseByDestroy)
+            {
+                Push(ui);
+            }
+
+            ui.Close();
+        }
+
+        void ShowFullScreenUI<T>(T ui)
+            where T : BaseUI
+        {
+            if (ui == null)
+            {
+                return;
+            }
+
+            ui.Show();
+            if (_CoexistingUI.ContainsKey(ui))
+            {
+                var list = _CoexistingUI[ui];
+                for (int i = 0, length = list.Count; i < length; i++)
+                {
+                    var l = list[i];
+                    l.Show();
+                }
+            }
+        }
+
+        void HideFullScreenUI<T>(T ui)
+            where T : BaseUI
+        {
+            if (ui == null)
+            {
+                return;
+            }
+
+            ui.Hide();
+            if (ui._NaviData._IsCloseCoexistingUI && _CoexistingUI.ContainsKey(ui))
+            {
+                // 仅支持关闭所有共存界面，不可关闭其中的几个
+                var list = _CoexistingUI[ui];
+                for (int i = 0, length = list.Count; i < length; i++)
+                {
+                    var l = list[i];
+                    l.CloseExternal();
+                }
+                list.Clear();
+            }
+        }
+
+
+
+        void RemoveTargetUI<T>(T ui)
+            where T : BaseUI
+        {
+            if (ui == null)
+            {
+                return;
+            }
+            if (ui._NaviData._Type == EUIType.FullScreen)
+            {
+                if (_OpenedFullScreenUI.Contains(ui))
+                {
+                    _OpenedFullScreenUI.Remove(ui);
+                }
+                if (_CoexistingUI.ContainsKey(ui))
+                {
+                    var list = _CoexistingUI[ui];
+                    for (int i = 0, length = list.Count; i < length; i++)
+                    {
+                        var l = list[i];
+                        l.CloseExternal();
+                    }
+                    list.Clear();
+                    _CoexistingUI.Remove(ui);
+                }
+            }
+            else if (ui._NaviData._Type == EUIType.Coexisting)
+            {
+                if (CurFullScreenUI != null && _CoexistingUI.ContainsKey(CurFullScreenUI))
+                {
+                    _CoexistingUI[CurFullScreenUI].Remove(ui);
+                }
+            }
+            else if (ui._NaviData._Type == EUIType.Independent)
+            {
+                if (_IndependentUI.Contains(ui))
+                {
+                    _IndependentUI.Remove(ui);
+                }
+            }
+            else if (ui._NaviData._Type == EUIType.Resident)
+            {
+                if (_ResidentUI.Contains(ui))
+                {
+                    _ResidentUI.Remove(ui);
+                }
+            }
+        }
+
+        BaseUI FindLastUI<T>(EUIType type)
+        {
+            BaseUI ui = null;
+            var t = typeof(T);
+            if (type == EUIType.FullScreen)
+            {
+                ui = _OpenedFullScreenUI.FindLast((BaseUI tempUI) => tempUI.GetType() == t);
+            }
+            else if (type == EUIType.Coexisting)
+            {
+                if (CurFullScreenUI != null && _CoexistingUI.ContainsKey(CurFullScreenUI))
+                {
+                    ui = _CoexistingUI[CurFullScreenUI].FindLast((BaseUI tempUI) => tempUI.GetType() == t);
+                }
+            }
+            else if (type == EUIType.Independent)
+            {
+                ui = _IndependentUI.FindLast((BaseUI tempUI) => tempUI.GetType() == t);
+            }
+            else if (type == EUIType.Resident)
+            {
+                ui = _ResidentUI.FindLast((BaseUI tempUI) => tempUI.GetType() == t);
+            }
+            return ui;
+        }
+
+        void AddTargetUI<T>(T ui)
+            where T : BaseUI
+        {
+            if (ui == null)
+            {
+                return;
+            }
+            // 设置层级
+            var last = FindLastUI<T>(ui._NaviData._Type);
+            if (last != null)
+            {
+                ui.CanvasComp.sortingOrder = last.CanvasComp.sortingOrder + 1;
+            }
+
+            if (ui._NaviData._Type == EUIType.FullScreen)
+            {
+                _OpenedFullScreenUI.Add(ui);
+            }
+            else if (ui._NaviData._Type == EUIType.Coexisting)
+            {
+                if (CurFullScreenUI != null)
+                {
+                    if (!_CoexistingUI.ContainsKey(CurFullScreenUI))
+                    {
+                        _CoexistingUI[CurFullScreenUI] = new List<BaseUI>();
+                    }
+                    _CoexistingUI[CurFullScreenUI].Add(ui);
+                }
+            }
+            else if (ui._NaviData._Type == EUIType.Independent)
+            {
+                _IndependentUI.Add(ui);
+            }
+            else if (ui._NaviData._Type == EUIType.Resident)
+            {
+                _ResidentUI.Add(ui);
+            }
+        }
+
+        public void PopupLastFullScreenUI()
+        {
+            CloseByClassName(CurFullScreenUI.GetType(), CurFullScreenUI);
+        }
+
+        void CloseByClassName(Type t, params object[] args)
+        {
+            System.Reflection.MethodInfo mi = this.GetType().GetMethod("CloseByReflect").MakeGenericMethod(new Type[] { t });
+            mi.Invoke(this, args);
+        }
+
+        public void CloseByReflect<T>(T ui)
+            where T : BaseUI
+        {
+            CloseInternal<T>(ui);
         }
     }
 }

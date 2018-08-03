@@ -7,19 +7,21 @@ namespace UIFramework
 {
     class BaseUI : MonoBehaviour
     {
-        NavigationData _NaviData = new NavigationData();
-        public virtual NavigationData NaviData
+        [SerializeField]
+        internal NavigationData _NaviData = new NavigationData();
+
+        Canvas _CanvasComp;
+        public Canvas CanvasComp
         {
             get
             {
-                return _NaviData;
-            }
-            protected set
-            {
-                _NaviData = value;
+                if (_CanvasComp == null)
+                {
+                    _CanvasComp = GetComponent<Canvas>();
+                }
+                return _CanvasComp;
             }
         }
-
         public Action _OnOpen;
         public Action _OnClose;
         public Action _OnShow;
@@ -35,16 +37,13 @@ namespace UIFramework
 
             if (data != null)
             {
-                NaviData = data;
+                _NaviData = data;
             }
+
+            SetData();
         }
 
-        public virtual void Close()
-        {
-            UIManager.Instance.Close(this);
-        }
-
-        internal void CloseInternal()
+        internal virtual void Close()
         {
             if (_OnClose != null)
             {
@@ -52,26 +51,49 @@ namespace UIFramework
             }
 
             // 处理显示状态
-            if (NaviData._CloseByDestroy)
+            if (_NaviData._CloseByDestroy)
             {
                 Destroy(this.gameObject);
             }
             else
             {
+                ClearData();
                 Hide();
             }
         }
 
-        public virtual void Show()
+        public void CloseExternal()
+        {
+            // 这里看看有什么优化方案，目前是Close调用UIManager.Close,然后UIManager调用CloseInternal
+            UIManager.Instance.Close(this);
+        }
+
+        internal virtual void Show()
         {
             gameObject.SetActive(true);
+            if (_OnShow != null)
+            {
+                _OnShow();
+            }
+        }
+
+        internal virtual void Hide()
+        {
+            if (_OnHide != null)
+            {
+                _OnHide();
+            }
+            gameObject.SetActive(false);
+        }
+
+        internal virtual void SetData()
+        {
 
         }
 
-        public virtual void Hide()
+        internal virtual void ClearData()
         {
 
-            gameObject.SetActive(false);
         }
     }
 }

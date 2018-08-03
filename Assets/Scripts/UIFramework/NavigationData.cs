@@ -7,8 +7,9 @@ namespace UIFramework
     enum EUILayer
     {
         FullScreen = 0,
-        Popup = 100,
-        Tips = 200,
+        Resident = 100,
+        Popup = 200,
+        Tips = 300,
     }
 
     enum EUIType
@@ -19,13 +20,20 @@ namespace UIFramework
         Independent
     }
 
+    [System.Serializable]
     class NavigationData
     {
         public EUILayer _Layer;
-        public uint _Group;
-        public List<object> _UIParams = new List<object>();
         public bool _CloseByDestroy; 
-        public bool _IsJumpBack; // 向回跳转，弹出之后的所有UI
         public EUIType _Type; 
+        //public uint _Group;
+        public bool _IsJumpBack; // 向回跳转，弹出之后的所有UI
+        //public bool _IsMultiple;
+
+        // 隐藏FullScreenUI之后，关闭共存UI，而不仅仅是隐藏
+        public bool _IsCloseCoexistingUI;
+
+        // 一些额外参数，比如是否打开某些ResidentUI上的元素
+        public List<object> _UIParams = new List<object>(); 
     }
 }

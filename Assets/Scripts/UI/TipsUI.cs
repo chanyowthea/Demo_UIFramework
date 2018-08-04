@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using UIFramework;
 using UnityEngine;
+using UnityEngine.UI;
 
 class TipsUI : BaseUI
 {
     [SerializeField] Transform _Window;
+    [SerializeField] Text _Text;
     // 配置处理
     public TipsUI()
     {
@@ -18,8 +20,9 @@ class TipsUI : BaseUI
         base.Open(data);
     }
 
-    public void SetData(Vector3 pos)
+    public void SetData(Vector3 pos, string msg)
     {
         _Window.transform.localPosition = pos;
+        _Text.text = msg; 
     }
 }

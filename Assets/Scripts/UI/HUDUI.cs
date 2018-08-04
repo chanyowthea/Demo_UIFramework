@@ -10,6 +10,7 @@ class HUDUI : BaseUI
     {
         _NaviData._Layer = EUILayer.FullScreen;
         _NaviData._Type = EUIType.FullScreen;
+        _NaviData._IsCloseCoexistingUI = false;
     }
 
     public override void Open(NavigationData data = null)

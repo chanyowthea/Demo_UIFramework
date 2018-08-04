@@ -27,7 +27,7 @@ namespace UIFramework
         public bool _CloseByDestroy; 
         public EUIType _Type; 
         //public uint _Group;
-        public bool _IsJumpBack; // 向回跳转，弹出之后的所有UI
+        //public bool _IsJumpBack; // 向回跳转，弹出之后的所有UI
         //public bool _IsMultiple;
 
         // 隐藏FullScreenUI之后，关闭共存UI，而不仅仅是隐藏

@@ -11,7 +11,7 @@ class MessageUI : BaseUI
     public MessageUI()
     {
         _NaviData._Layer = EUILayer.Tips;
-        _NaviData._Type = EUIType.Coexisting;
+        _NaviData._Type = EUIType.Independent;
     }
 
     public override void Open(NavigationData data = null)
@@ -27,6 +27,6 @@ class MessageUI : BaseUI
 
     void WaitClose()
     {
-        CloseExternal();
+        UIManager.Instance.Close(this);
     }
 }

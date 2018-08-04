@@ -89,7 +89,7 @@ namespace UIFramework
         }
 
 
-        public T Get<T>()
+        T Get<T>()
             where T : BaseUI
         {
             var t = typeof(T);
@@ -110,7 +110,7 @@ namespace UIFramework
             return GameObject.Instantiate(Resources.Load<T>("UI/" + typeof(T).ToString()));
         }
 
-        public void Push<T>(T ui)
+        void Push<T>(T ui)
             where T : BaseUI
         {
             var t = typeof(T);
@@ -122,9 +122,18 @@ namespace UIFramework
             _UIPool[t].Enqueue(ui);
         }
 
-        public T Open<T>(NavigationData data = null)
+        public T Open<T>(NavigationData data = null, bool isJumpBack = false)
             where T : BaseUI
         {
+            if (isJumpBack)
+            {
+                while (CurFullScreenUI != null && CurFullScreenUI.GetType() != typeof(T))
+                {
+                    PopupLastFullScreenUI();
+                }
+                return null;
+            }
+
             Debug.Log("Open t=" + typeof(T));
             var ui = Get<T>();
             if (ui == null)
@@ -159,7 +168,7 @@ namespace UIFramework
             BaseUI ui = FindLastUI<T>(temp._NaviData._Type);
             if (ui == null)
             {
-                Debug.LogErrorFormat("do not contains ui with type of {0}", t);
+                //Debug.LogErrorFormat("do not contains ui with type of {0}", t);
                 return;
             }
             CloseInternal(ui as T);
@@ -226,16 +235,27 @@ namespace UIFramework
             }
 
             ui.Hide();
-            if (ui._NaviData._IsCloseCoexistingUI && _CoexistingUI.ContainsKey(ui))
+            if (_CoexistingUI.ContainsKey(ui))
             {
                 // 仅支持关闭所有共存界面，不可关闭其中的几个
                 var list = _CoexistingUI[ui];
-                for (int i = 0, length = list.Count; i < length; i++)
+                if (ui._NaviData._IsCloseCoexistingUI)
                 {
-                    var l = list[i];
-                    l.CloseExternal();
+                    for (int i = 0, length = list.Count; i < length; i++)
+                    {
+                        var l = list[i];
+                        CloseByClassName(l.GetType(), l);
+                    }
+                    list.Clear();
                 }
-                list.Clear();
+                else
+                {
+                    for (int i = 0, length = list.Count; i < length; i++)
+                    {
+                        var l = list[i];
+                        l.Hide();
+                    }
+                }
             }
         }
 
@@ -260,7 +280,7 @@ namespace UIFramework
                     for (int i = 0, length = list.Count; i < length; i++)
                     {
                         var l = list[i];
-                        l.CloseExternal();
+                        CloseByClassName(l.GetType(), l);
                     }
                     list.Clear();
                     _CoexistingUI.Remove(ui);

@@ -25,7 +25,7 @@ class BuildUI : BaseUI
     public void OnTipsShow()
     {
         _Tips = UIManager.Instance.Open<TipsUI>();
-        _Tips.SetData(Input.mousePosition - new Vector3(Screen.width / 2f, Screen.height / 2f, 0)); 
+        _Tips.SetData(Input.mousePosition - new Vector3(Screen.width / 2f, Screen.height / 2f, 0), "こんにちは " + Time.time); 
     }
 
     public void OnTipsHide()

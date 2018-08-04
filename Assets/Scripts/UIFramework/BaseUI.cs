@@ -62,11 +62,11 @@ namespace UIFramework
             }
         }
 
-        public void CloseExternal()
-        {
-            // 这里看看有什么优化方案，目前是Close调用UIManager.Close,然后UIManager调用CloseInternal
-            UIManager.Instance.Close(this);
-        }
+        //public void CloseExternal()
+        //{
+        //    // 这里看看有什么优化方案，目前是Close调用UIManager.Close,然后UIManager调用CloseInternal
+        //    UIManager.Instance.Close(this);
+        //}
 
         internal virtual void Show()
         {
